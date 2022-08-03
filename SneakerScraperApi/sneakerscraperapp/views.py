@@ -11,11 +11,12 @@ import json
 import random
 import os
 import urllib.request
+import concurrent.futures
 
  
 cwd = os.getcwd()
 #D:\DjangoAPI\Drinks\SneakerScraperApi\sneakerscraperapp\proxies.txt
-value = open('.\SneakerScraperApi\sneakerscraperapp\proxies.txt','r')
+value = open('.\sneakerscraperapp\proxies.txt','r')
 proxy = value.readlines()
 proxy = [v.strip() for v in proxy]
 
@@ -31,22 +32,20 @@ def set_http_proxy(proxy):
         opener = urllib.request.build_opener(proxy_support)
         urllib.request.install_opener(opener)
 
+def proxy_request(url, prox, headers):
+    try:
+        set_http_proxy(prox)
+        request = urllib.request.Request(url, headers=headers)
+        response = urllib.request.urlopen(request)
+        response_json = json.loads(response.read())
+        return response_json
+    except:
+        pass
+
 @api_view(['GET','PUT','DELETE'])
 def sku_details(request,id):    
     # stockx_sku = str(id)
-    try:    
-        # value = open('E:\Project\stockxapiproject\proxy.txt','r')
-        # proxy = value.readlines()
-        # proxy = [v.strip() for v in proxy]
-        # value_choice = random.choice(proxy)
-
-        # proxies = {
-        # "http": f"http://{value_choice}",
-        # "https": f"https://{value_choice}",
-        # }
-        # proxies = {"http": "http://5.79.73.131:13150","https": "https://5.79.73.131:13150","ftp": "ftp://5.79.73.131:13150"}
-
-        
+    try:         
         split_sku = str(id).split('_')
         stockx_sku = split_sku[0]
         goat_sku = split_sku[1]
@@ -100,16 +99,27 @@ def sku_details(request,id):
     url=f'https://stockx.com/api/browse?_search={stockx_sku}&resultsPerPage=10&dataType=product&facetsToRetrieve[]=browseVerticals&propsToRetrieve[][]=brand&propsToRetrieve[][]=colorway&propsToRetrieve[][]=media&propsToRetrieve[][]=title&propsToRetrieve[][]=productCategory&propsToRetrieve[][]=shortDescription&propsToRetrieve[][]=styleId&&propsToRetrieve[][]=urlKey'
     if proxy_flag=='Yes':
         while True:
-            try:
-                value_choice = random.choice(proxy)
-                set_http_proxy(value_choice)
-                request = urllib.request.Request(url, headers=headers_stockx)
-                response = urllib.request.urlopen(request)
-                response_json = json.loads(response.read())
-                break
-                # response_json =json.loads(requests.get(url = url, headers=headers_stockx,proxies=proxies).text)    
-            except:
-                pass
+            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as exe:
+                future_to_url = {exe.submit(proxy_request,url, prox, headers_stockx): prox for prox in proxy}
+                for future in concurrent.futures.as_completed(future_to_url):
+                    response_json = future.result()
+                    if response_json != None:
+                        break
+                if response_json != None:
+                    break
+        
+        # proxy_request(url,prox,headers_stockx)
+        # while True:
+        #     try:
+        #         value_choice = random.choice(proxy)
+        #         set_http_proxy(value_choice)
+        #         request = urllib.request.Request(url, headers=headers_stockx)
+        #         response = urllib.request.urlopen(request)
+        #         response_json = json.loads(response.read())
+        #         break
+        #         # response_json =json.loads(requests.get(url = url, headers=headers_stockx,proxies=proxies).text)    
+        #     except:
+        #         pass
 
     elif proxy_flag=='No':
         try:
@@ -127,17 +137,17 @@ def sku_details(request,id):
             if i['styleId'] == stockx_sku:            
                 url_key = i['urlKey']
         if proxy_flag=='Yes':
+            url = f'https://stockx.com/api/products/{url_key}?includes=market,360&currency=USD&country={region}'
             while True:
-                try:
-                    value_choice = random.choice(proxy)
-                    set_http_proxy(value_choice)
-                    request = urllib.request.Request(f'https://stockx.com/api/products/{url_key}?includes=market,360&currency=USD&country={region}', headers=headers)
-                    response = urllib.request.urlopen(request)
-                    product_json = json.loads(response.read())
-                    break
-                    # product_json = json.loads(requests.get(f'https://stockx.com/api/products/{url_key}?includes=market,360&currency=USD&country={region}',headers=headers).text)
-                except:
-                    pass
+                with concurrent.futures.ThreadPoolExecutor(max_workers=5) as exe:
+                    future_to_url = {exe.submit(proxy_request,url, prox, headers): prox for prox in proxy}
+                    for future in concurrent.futures.as_completed(future_to_url):
+                        response_json = future.result()
+                        if response_json != None:
+                            break
+                    if response_json != None:
+                        break
+
         elif proxy_flag=='No':
             try:
                 product_json = json.loads(requests.get(f'https://stockx.com/api/products/{url_key}?includes=market,360&currency=USD&country={region}',headers=headers).text)
@@ -391,18 +401,29 @@ def stockx_details(request,id):
         # 'Accept-Encoding': 'gzip, deflate, br', 'Accept-Language': 'en-US,en;q=0.9',
         # 'Cookie':'stockx_device_id=0420c803-759c-4e65-aea0-4255ff491cbd; stockx_session=7b72df45-ec30-4b91-a2a8-a4acd5d3c486; pxcts=77c76a62-ebc8-11ec-a732-63766b486259; _pxvid=77c75f03-ebc8-11ec-a732-63766b486259; _ga=undefined; __pxvid=786173fa-ebc8-11ec-ac1a-0242ac120002; ajs_anonymous_id=61c6c8b8-5730-4ae4-aeb3-ddc9cb54c077; __ssid=ac596e942ac2d7706166fecf1797338; rskxRunCookie=0; rCookie=wlbmhbmv5bihlzer6pv4ial4dzqzdx; rbuid=rbos-90198fa9-287b-44e5-9689-6270bad8753a; _pin_unauth=dWlkPVlURmpNV1psTmpZdE9ESTRNaTAwTVROakxXSmxZakV0WkROa1ltRXhZbVV4TWpsaA; stockx_selected_currency=SGD; stockx_selected_locale=en; language_code=en; stockx_selected_region=SG; stockx_dismiss_modal=true; stockx_dismiss_modal_set=2022-06-14T09%3A58%3A03.261Z; stockx_dismiss_modal_expiration=2023-06-14T09%3A58%3A03.260Z; stockx_preferred_market_activity=sales; stockx_default_sneakers_size=All; stockx_homepage=sneakers; __cf_bm=OloZda.vx_3EuBUUmetulZ4Dua4OnH_PCl70JPC2hAk-1655201479-0-AQKcHlqpuY8ac9dActCoJucZ+IfpR66V5l+2Y1tbc5tWiZBMMxu0wYp8r7pYDjwvc9QYpwkXNu2u53EOCO2b7A4=; stockx_product_visits=2; _pxff_idp_c=1,s; OptanonConsent=isGpcEnabled=0&datestamp=Tue+Jun+14+2022+15%3A11%3A21+GMT%2B0500+(Pakistan+Standard+Time)&version=6.36.0&isIABGlobal=false&hosts=&consentId=60d00bff-a929-4c57-a324-d1b700db881b&interactionCount=1&landingPath=NotLandingPage&groups=C0001%3A1%2CC0002%3A0%2CC0004%3A0%2CC0005%3A0%2CC0003%3A0&AwaitingReconsent=false; forterToken=bddd440983b6481d9121c3a95761fd51_1655201481105__UDF43_13ck; _px3=e754a73fcc1e50eefecb0a051eb0067b12d196ad39ce9986cd8b918a327a5fd4:RUp382dSczzIyJP2JtPQ5Wl2YncZCJCapoHRgBo3wwSku0lfIxH9hs3NHKvaZGouqEaTxE/67E4/+1p6l1OU5w==:1000:jA6132MynF+dwMqHSP8wQXrmUCiskN5saSXHHyvgWNm1miR2q0ko4V8lTXpaMhNZ+tEvbFenBRQQFYmTKaBTAJo9S8A6PDmDeI9aXlry/wiYUuzdpi4DeyNwboeBCZigfV2G5jVs6JHx5dXH/AJ9kYN3b5Eh77kx65SwET8SmR4alb6pB5gvKUMmjyWYZjst6u1jmKzH7EBZeo/ru7Cdbg==; lastRskxRun=1655201486553; _dd_s=rum=0&expire=1655202392628; _pxde=b6db7aaa3d29356fa5f3846824a8bedf143b0f8d81c046d9d72d932523564355:eyJ0aW1lc3RhbXAiOjE2NTUyMDE0OTI4NDYsImZfa2IiOjB9'
     }
+    url=f'https://stockx.com/api/browse?_search={stockx_sku}&resultsPerPage=10&dataType=product&facetsToRetrieve[]=browseVerticals&propsToRetrieve[][]=brand&propsToRetrieve[][]=colorway&propsToRetrieve[][]=media&propsToRetrieve[][]=title&propsToRetrieve[][]=productCategory&propsToRetrieve[][]=shortDescription&propsToRetrieve[][]=styleId&&propsToRetrieve[][]=urlKey'
     if proxy_flag=='Yes':
         while True:
-            try:
-                url=f'https://stockx.com/api/browse?_search={stockx_sku}&resultsPerPage=10&dataType=product&facetsToRetrieve[]=browseVerticals&propsToRetrieve[][]=brand&propsToRetrieve[][]=colorway&propsToRetrieve[][]=media&propsToRetrieve[][]=title&propsToRetrieve[][]=productCategory&propsToRetrieve[][]=shortDescription&propsToRetrieve[][]=styleId&&propsToRetrieve[][]=urlKey'
-                set_http_proxy(value_choice)
-                request = urllib.request.Request(url, headers=headers_stockx)
-                response = urllib.request.urlopen(request)
-                response_json = json.loads(response.read())
-                break
-                # response_json =json.loads(requests.get(url=f'https://stockx.com/api/browse?_search={stockx_sku}&resultsPerPage=10&dataType=product&facetsToRetrieve[]=browseVerticals&propsToRetrieve[][]=brand&propsToRetrieve[][]=colorway&propsToRetrieve[][]=media&propsToRetrieve[][]=title&propsToRetrieve[][]=productCategory&propsToRetrieve[][]=shortDescription&propsToRetrieve[][]=styleId&&propsToRetrieve[][]=urlKey',headers=headers_stockx,proxies=proxies).text)
-            except:
-                pass 
+            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as exe:
+                future_to_url = {exe.submit(proxy_request,url, prox, headers_stockx): prox for prox in proxy}
+                for future in concurrent.futures.as_completed(future_to_url):
+                    response_json = future.result()
+                    if response_json != None:
+                        break
+                if response_json != None:
+                    break
+    # if proxy_flag=='Yes':
+    #     while True:
+    #         try:
+    #             url=f'https://stockx.com/api/browse?_search={stockx_sku}&resultsPerPage=10&dataType=product&facetsToRetrieve[]=browseVerticals&propsToRetrieve[][]=brand&propsToRetrieve[][]=colorway&propsToRetrieve[][]=media&propsToRetrieve[][]=title&propsToRetrieve[][]=productCategory&propsToRetrieve[][]=shortDescription&propsToRetrieve[][]=styleId&&propsToRetrieve[][]=urlKey'
+    #             set_http_proxy(value_choice)
+    #             request = urllib.request.Request(url, headers=headers_stockx)
+    #             response = urllib.request.urlopen(request)
+    #             response_json = json.loads(response.read())
+    #             break
+    #             # response_json =json.loads(requests.get(url=f'https://stockx.com/api/browse?_search={stockx_sku}&resultsPerPage=10&dataType=product&facetsToRetrieve[]=browseVerticals&propsToRetrieve[][]=brand&propsToRetrieve[][]=colorway&propsToRetrieve[][]=media&propsToRetrieve[][]=title&propsToRetrieve[][]=productCategory&propsToRetrieve[][]=shortDescription&propsToRetrieve[][]=styleId&&propsToRetrieve[][]=urlKey',headers=headers_stockx,proxies=proxies).text)
+    #         except:
+    #             pass 
                 
     elif proxy_flag=='No':
         try:
@@ -421,18 +442,20 @@ def stockx_details(request,id):
             if i['styleId'] == stockx_sku:            
                 url_key = i['urlKey']
 
+        
         if proxy_flag=='Yes':
+            url = f'https://stockx.com/api/products/{url_key}?includes=market,360&currency=USD&country={region}'
             while True:
-                try:
-                    set_http_proxy(value_choice)
-                    request = urllib.request.Request(f'https://stockx.com/api/products/{url_key}?includes=market,360&currency=USD&country={region}', headers=headers)
-                    response = urllib.request.urlopen(request)
-                    product_json = json.loads(response.read())
-                    break
-                    # product_json = json.loads(requests.get(f'https://stockx.com/api/products/{url_key}?includes=market,360&currency=USD&country={region}',headers=headers,proxies=proxies).text)
-                except:
-                    pass
+                with concurrent.futures.ThreadPoolExecutor(max_workers=5) as exe:
+                    future_to_url = {exe.submit(proxy_request,url, prox, headers): prox for prox in proxy}
+                    for future in concurrent.futures.as_completed(future_to_url):
+                        response_json = future.result()
+                        if response_json != None:
+                            break
+                    if response_json != None:
+                        break
 
+        
         elif proxy_flag=='No':
             try:
                 product_json = json.loads(requests.get(f'https://stockx.com/api/products/{url_key}?includes=market,360&currency=USD&country={region}',headers=headers).text)
