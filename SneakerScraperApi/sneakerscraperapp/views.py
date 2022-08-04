@@ -142,10 +142,10 @@ def sku_details(request,id):
                 with concurrent.futures.ThreadPoolExecutor(max_workers=5) as exe:
                     future_to_url = {exe.submit(proxy_request,url, prox, headers): prox for prox in proxy}
                     for future in concurrent.futures.as_completed(future_to_url):
-                        response_json = future.result()
-                        if response_json != None:
+                        product_json = future.result()
+                        if product_json != None:
                             break
-                    if response_json != None:
+                    if product_json != None:
                         break
 
         elif proxy_flag=='No':
@@ -449,10 +449,10 @@ def stockx_details(request,id):
                 with concurrent.futures.ThreadPoolExecutor(max_workers=5) as exe:
                     future_to_url = {exe.submit(proxy_request,url, prox, headers): prox for prox in proxy}
                     for future in concurrent.futures.as_completed(future_to_url):
-                        response_json = future.result()
-                        if response_json != None:
+                        product_json = future.result()
+                        if product_json != None:
                             break
-                    if response_json != None:
+                    if product_json != None:
                         break
 
         
