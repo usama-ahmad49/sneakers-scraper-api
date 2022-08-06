@@ -12,16 +12,14 @@ import random
 import os
 import urllib.request
 import concurrent.futures
-
  
 cwd = os.getcwd()
 #D:\DjangoAPI\Drinks\SneakerScraperApi\sneakerscraperapp\proxies.txt
-value = open('.\SneakerScraperApi\sneakerscraperapp\proxies.txt','r')
-proxy = value.readlines()
-proxy = [v.strip() for v in proxy]
+value = open('.\sneakerscraperapp\proxies.txt','r')
+proxy = value.readlines()[0]
 
 certificate = 'D:\Work\sneakers-scraper-api\SneakerScraperApi\sneakerscraperapp\zyte-smartproxy-ca.crt'
-proxy_auth = "ef2e0ff4f5b24a82a8e715ad869af33a:"
+proxy_auth = proxy
 proxies={
         "http": f"http://{proxy_auth}@proxy.crawlera.com:8011/",
         "https": f"http://{proxy_auth}@proxy.crawlera.com:8011/",
